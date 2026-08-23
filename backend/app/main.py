@@ -1,6 +1,6 @@
 from fastapi import FastAPI
 
-from app.routes import applications_router
+from app.routes import applications_router, companies_router
 
 app = FastAPI(
     title="Application Tracker API",
@@ -12,6 +12,12 @@ app.include_router(
     applications_router,
     prefix="/api/v1/applications",
     tags=["applications"],
+)
+
+app.include_router(
+    companies_router,
+    prefix="/api/v1/companies",
+    tags=["companies"],
 )
 
 
