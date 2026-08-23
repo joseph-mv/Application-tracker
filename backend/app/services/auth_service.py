@@ -1,22 +1,22 @@
 # app/services/auth_service.py
 
 from fastapi import HTTPException, status
-from sqlalchemy.orm import Session
+from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.security import hash_password
 from app.models.user import User
 from app.services.user_service import get_user_by_email
 
 
-def signup(
-    db: Session,
+async def signup(
+    db: AsyncSession,
     name: str,
     email: str,
     password: str,
 ) -> User:
 
     # 1. Check whether email is already registered
-    existing_user = get_user_by_email(
+    existing_user = await get_user_by_email(
         db,
         email,
     )
@@ -40,6 +40,6 @@ def signup(
     # 4. Save to database
     db.add(user)
 
-    db.commit()
+    await db.commit()
 
     return {"message": "User created successfully"}

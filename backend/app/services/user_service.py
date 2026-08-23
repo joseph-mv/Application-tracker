@@ -1,17 +1,17 @@
 # app/services/user_service.py
 
 from sqlalchemy import select
-from sqlalchemy.orm import Session
+from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.models.user import User
 
 
-def get_user_by_email(
-    db: Session,
+async def get_user_by_email(
+    db: AsyncSession,
     email: str,
 ) -> User | None:
 
-    result = db.scalars(
+    result = await db.scalars(
         select(User).where(User.email == email)
     )
 

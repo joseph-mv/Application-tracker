@@ -16,11 +16,11 @@ router = APIRouter()
     "/signup",
     status_code=status.HTTP_201_CREATED,
 )
-def signup_user(
+async def signup_user(
     data: SignupRequest,
     db: DbSession,
 ) -> dict:
-    user = signup(
+    user = await signup(
         db=db,
         name=data.name,
         email=data.email,
