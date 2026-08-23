@@ -1,6 +1,6 @@
 from fastapi import FastAPI
 
-from app.routes import applications_router, companies_router
+from app.routes import applications_router, auth_router, companies_router
 
 app = FastAPI(
     title="Application Tracker API",
@@ -18,6 +18,12 @@ app.include_router(
     companies_router,
     prefix="/api/v1/companies",
     tags=["companies"],
+)
+
+app.include_router(
+    auth_router,
+    prefix="/api/v1/auth",
+    tags=["auth"],
 )
 
 
