@@ -1,7 +1,13 @@
+import asyncio
+import sys
+
+if sys.platform == "win32":
+    asyncio.set_event_loop_policy(asyncio.WindowsSelectorEventLoopPolicy())
+    
 from fastapi import FastAPI
 
-from app.routes import applications_router, auth_router, companies_router
 
+from app.routes import applications_router, auth_router, companies_router
 app = FastAPI(
     title="Application Tracker API",
     version="1.0.0",
