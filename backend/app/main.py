@@ -7,7 +7,12 @@ if sys.platform == "win32":
 from fastapi import FastAPI
 
 
-from app.routes import applications_router, auth_router, companies_router
+from app.routes import (
+    applications_router,
+    auth_router,
+    companies_router,
+    job_posts_router,
+)
 app = FastAPI(
     title="Application Tracker API",
     version="1.0.0",
@@ -24,6 +29,12 @@ app.include_router(
     companies_router,
     prefix="/api/v1/companies",
     tags=["companies"],
+)
+
+app.include_router(
+    job_posts_router,
+    prefix="/api/v1/job-posts",
+    tags=["job-posts"],
 )
 
 app.include_router(
