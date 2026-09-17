@@ -7,6 +7,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.models.company import Company
 from app.models.job_post import JobPost
 from app.schemas.job_post import JobPostCreate, JobPostUpdate
+from app.utils.url_helpers import generate_url_hash
 
 
 class DuplicateUrlHashError(Exception):
@@ -21,8 +22,8 @@ async def create_job_post(db: AsyncSession, data: JobPostCreate) -> JobPost:
     company = await db.get(Company, data.company_id)
     if company is None:
         raise CompanyNotFoundError
-
-    job_post = JobPost(**data.model_dump(mode="json"))
+    url_hash = generate_url_hash(data.posting_url)
+    job_post = JobPost(url_hash=url_hash, **data.model_dump(mode="json"))
     db.add(job_post)
     try:
         await db.commit()

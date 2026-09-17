@@ -18,7 +18,6 @@ class JobPostBase(BaseModel):
     description_raw: str | None = None
     description_summary: str | None = None
     posting_url: AnyUrl
-    url_hash: str = Field(..., max_length=64)
     external_id: str | None = Field(default=None, max_length=255)
     employment_type: EmploymentType | None = None
     experience_level: ExperienceLevel | None = None
