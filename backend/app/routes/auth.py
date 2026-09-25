@@ -2,7 +2,7 @@
 
 from fastapi import APIRouter, status
 
-from app.deps import DbSession
+from app.deps import CurrentUser, DbSession
 from app.schemas.auth import LoginRequest, RefreshRequest, SignupRequest, TokenResponse
 from app.services.auth_service import login, refresh, signup
 
@@ -17,13 +17,13 @@ async def signup_user(
     data: SignupRequest,
     db: DbSession,
 ) -> dict:
-    user = await signup(
+    await signup(
         db=db,
         name=data.name,
         email=data.email,
         password=data.password,
     )
-    return {"message": "User created successfully", "user": user}
+    return {"message": "User created successfully"}
 
 
 @router.post(
@@ -45,3 +45,16 @@ async def login_user(
 )
 async def refresh_tokens(data: RefreshRequest) -> TokenResponse:
     return await refresh(data.refresh_token)
+
+
+@router.get(
+    "/me",
+    status_code=status.HTTP_200_OK,
+)
+async def get_me(current_user: CurrentUser) -> dict:
+    return {
+        "id": str(current_user.id),
+        "name": current_user.name,
+        "email": current_user.email,
+        "logo_url": current_user.logo_url,
+    }
