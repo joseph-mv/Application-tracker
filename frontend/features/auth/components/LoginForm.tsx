@@ -53,7 +53,7 @@ export function LoginForm() {
   async function onSubmit(values: LoginFormValues) {
     try {
       await establishSession(values.email, values.password)
-      router.push("/")
+      router.replace("/home")
     } catch (err) {
       const message =
         err instanceof Error ? err.message : "Invalid email or password"
