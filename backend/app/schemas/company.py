@@ -44,3 +44,9 @@ class CompanyRead(CompanyBase):
     id: uuid.UUID
     created_at: datetime
     updated_at: datetime
+
+
+class CompanyFieldRead(BaseModel):
+    field: str
+    type: str
+    required: bool

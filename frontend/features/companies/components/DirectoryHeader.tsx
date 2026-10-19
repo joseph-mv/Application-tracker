@@ -1,6 +1,8 @@
+import Link from "next/link"
 import { Building2, Plus, Upload } from "lucide-react"
 
-import { Button } from "@/components/ui/button"
+import { Button, buttonVariants } from "@/components/ui/button"
+import { cn } from "@/lib/utils"
 
 export function DirectoryHeader({
   onAddCompany,
@@ -23,13 +25,16 @@ export function DirectoryHeader({
         </p>
       </div>
       <div className="flex items-center gap-space-sm self-start md:self-auto">
-        <Button
-          className="h-11 rounded-xl bg-surface-container-lowest px-4 text-on-surface shadow-elevation-card hover:bg-surface-container-high"
-          variant="ghost"
+        <Link
+          className={cn(
+            buttonVariants({ variant: "ghost" }),
+            "h-11 rounded-xl bg-surface-container-lowest px-4 text-on-surface shadow-elevation-card hover:bg-surface-container-high"
+          )}
+          href="/companies/import"
         >
           <Upload className="text-outline" />
           Import
-        </Button>
+        </Link>
         <Button
           className="h-11 rounded-xl bg-primary-container px-5 text-primary-foreground shadow-elevation-card hover:bg-primary-container/90"
           onClick={onAddCompany}

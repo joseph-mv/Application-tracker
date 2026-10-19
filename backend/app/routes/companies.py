@@ -3,7 +3,12 @@ import uuid
 from fastapi import APIRouter, HTTPException, status
 
 from app.deps import DbSession
-from app.schemas.company import CompanyCreate, CompanyRead, CompanyUpdate
+from app.schemas.company import (
+    CompanyCreate,
+    CompanyFieldRead,
+    CompanyRead,
+    CompanyUpdate,
+)
 from app.services import company_service
 
 router = APIRouter()
@@ -21,6 +26,11 @@ async def create_company(payload: CompanyCreate, db: DbSession):
 @router.get("/", response_model=list[CompanyRead])
 async def list_companies(db: DbSession, skip: int = 0, limit: int = 100):
     return await company_service.get_companies(db, skip, limit)
+
+
+@router.get("/import-fields", response_model=list[CompanyFieldRead])
+def get_company_import_fields():
+    return company_service.get_company_import_fields()
 
 
 @router.get("/{company_id}", response_model=CompanyRead)

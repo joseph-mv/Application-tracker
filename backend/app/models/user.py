@@ -17,7 +17,10 @@ class User(Base):
         server_default=func.gen_random_uuid(),
     )
     name: Mapped[str] = mapped_column(String(255), nullable=False)
-    email: Mapped[str] = mapped_column(String(255), nullable=False, unique=True)
+    email: Mapped[str] = mapped_column(
+        String(255),
+        nullable=False, unique=True
+        )
     hashed_password: Mapped[str] = mapped_column(String(255), nullable=False)
     logo_url: Mapped[str | None] = mapped_column(String(2048))
     created_at: Mapped[datetime] = mapped_column(
