@@ -1,52 +1,22 @@
 "use client"
 
-import { useEffect, useState } from "react"
 import Link from "next/link"
+import { useQuery } from "@tanstack/react-query"
 import { ArrowLeft, Upload } from "lucide-react"
 
 import { buttonVariants } from "@/components/ui/button"
 import { cn } from "@/lib/utils"
-import {
-  getCompanyImportFields,
-  type CompanyImportField,
-} from "@/services/company.services"
+import { getCompanyImportFields } from "@/services/company.services"
 
 export function CompanyImportPage() {
-  const [fields, setFields] = useState<CompanyImportField[]>([])
-  const [isLoading, setIsLoading] = useState(true)
-  const [error, setError] = useState<string | null>(null)
-
-  useEffect(() => {
-    let isMounted = true
-
-    getCompanyImportFields()
-      .then((data) => {
-        if (!isMounted) {
-          return
-        }
-        setFields(data)
-        setError(null)
-      })
-      .catch((requestError: unknown) => {
-        if (!isMounted) {
-          return
-        }
-        setError(
-          requestError instanceof Error
-            ? requestError.message
-            : "Unable to load import fields"
-        )
-      })
-      .finally(() => {
-        if (isMounted) {
-          setIsLoading(false)
-        }
-      })
-
-    return () => {
-      isMounted = false
-    }
-  }, [])
+  const {
+    data: fields = [],
+    isPending,
+    error,
+  } = useQuery({
+    queryKey: ["companies", "import-fields"],
+    queryFn: getCompanyImportFields,
+  })
 
   return (
     <div className="flex w-full flex-col gap-space-xl">
@@ -75,12 +45,16 @@ export function CompanyImportPage() {
         </Link>
       </section>
 
-      {isLoading ? (
+      {isPending ? (
         <p className="text-body-md text-on-surface-variant">
           Loading import fields...
         </p>
       ) : error ? (
-        <p className="text-body-md text-destructive">{error}</p>
+        <p className="text-body-md text-destructive">
+          {error instanceof Error
+            ? error.message
+            : "Unable to load import fields"}
+        </p>
       ) : (
         <ul className="flex flex-col gap-space-sm">
           {fields.map((field) => (
