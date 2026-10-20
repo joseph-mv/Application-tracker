@@ -1,10 +1,19 @@
 "use client"
 
+import { useMemo, useState } from "react"
 import Link from "next/link"
 import { useQuery } from "@tanstack/react-query"
 import { ArrowLeft, Upload } from "lucide-react"
 
 import { buttonVariants } from "@/components/ui/button"
+import { Input } from "@/components/ui/input"
+import { Label } from "@/components/ui/label"
+import { ColumnMappingCombobox } from "@/features/companies/components/ColumnMappingCombobox"
+import { ImportFieldsStatus } from "@/features/companies/components/ImportFieldsStatus"
+import {
+  buildInitialColumnMapping,
+  getExcelColumnNames,
+} from "@/features/companies/lib/excel-columns"
 import { cn } from "@/lib/utils"
 import { getCompanyImportFields } from "@/services/company.services"
 
@@ -17,6 +26,49 @@ export function CompanyImportPage() {
     queryKey: ["companies", "import-fields"],
     queryFn: getCompanyImportFields,
   })
+  const [columns, setColumns] = useState<string[]>([])
+  const [mapping, setMapping] = useState<Record<string, string>>({})
+  const [parseError, setParseError] = useState<string | null>(null)
+  const hasFile = columns.length > 0
+
+
+  const usedColumns = useMemo(
+    () => new Set(Object.values(mapping).filter(Boolean)),
+    [mapping]
+  )
+
+  async function handleFileChange(event: React.ChangeEvent<HTMLInputElement>) {
+    const file = event.target.files?.[0]
+
+    if (!file) {
+      setColumns([])
+      setMapping({})
+      setParseError(null)
+      return
+    }
+
+    try {
+      const names = await getExcelColumnNames(file)
+      setColumns(names)
+      setMapping(buildInitialColumnMapping(fields, names))
+      setParseError(null)
+    } catch (requestError: unknown) {
+      setColumns([])
+      setMapping({})
+      setParseError(
+        requestError instanceof Error
+          ? requestError.message
+          : "Unable to read spreadsheet columns"
+      )
+    }
+  }
+
+  function handleMappingChange(fieldName: string, column: string) {
+    setMapping((current) => ({
+      ...current,
+      [fieldName]: column,
+    }))
+  }
 
   return (
     <div className="flex w-full flex-col gap-space-xl">
@@ -46,32 +98,75 @@ export function CompanyImportPage() {
       </section>
 
       {isPending ? (
-        <p className="text-body-md text-on-surface-variant">
-          Loading import fields...
-        </p>
+        <ImportFieldsStatus
+          description="Fetching the company fields available for import."
+          status="pending"
+          title="Loading import fields"
+        />
       ) : error ? (
-        <p className="text-body-md text-destructive">
-          {error instanceof Error
-            ? error.message
-            : "Unable to load import fields"}
-        </p>
+        <ImportFieldsStatus
+          description={
+            error instanceof Error
+              ? error.message
+              : "Unable to load import fields"
+          }
+          status="error"
+          title="Could not load import fields"
+        />
       ) : (
-        <ul className="flex flex-col gap-space-sm">
-          {fields.map((field) => (
-            <li
-              className="flex items-center justify-between rounded-xl bg-surface-container-lowest px-space-md py-space-sm shadow-elevation-card"
-              key={field.field}
-            >
-              <span className="text-body-md font-medium text-on-surface">
-                {field.field}
-              </span>
-              <span className="text-body-md text-on-surface-variant">
-                {field.type}
-                {field.required ? " · required" : ""}
-              </span>
-            </li>
-          ))}
-        </ul>
+        <div className="flex flex-col gap-space-md">
+          <div className="flex max-w-md flex-col gap-space-xs">
+            <Label htmlFor="company-import-file">Excel file</Label>
+            <Input
+              accept=".xlsx,.xls"
+              id="company-import-file"
+              onChange={handleFileChange}
+              type="file"
+            />
+            {parseError ? (
+              <p className="text-body-md text-destructive">{parseError}</p>
+            ) : null}
+          </div>
+
+          <ul className="flex flex-col gap-space-sm">
+            {fields.map((field) => {
+              const availableColumns = columns.filter(
+                (column) =>
+                  column === mapping[field.field] || !usedColumns.has(column)
+              )
+
+              return (
+                <li
+                  className="flex items-center justify-between gap-space-md rounded-xl bg-surface-container-lowest px-space-md py-space-sm shadow-elevation-card"
+                  key={field.field}
+                >
+                  <span className="text-body-md font-medium text-on-surface">
+                    {field.field}
+                  </span>
+                  <div className="flex flex-col items-end">
+                    {field.required ? (
+                      <span
+                        aria-hidden="true"
+                        className="text-caption leading-none text-destructive"
+                      >
+                        *
+                      </span>
+                    ) : null}
+                    <ColumnMappingCombobox
+                      optional={!field.required}
+                      columns={availableColumns}
+                      disabled={!hasFile}
+                      onChange={(column) =>
+                        handleMappingChange(field.field, column)
+                      }
+                      value={mapping[field.field] ?? ""}
+                    />
+                  </div>
+                </li>
+              )
+            })}
+          </ul>
+        </div>
       )}
     </div>
   )
