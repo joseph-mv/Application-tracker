@@ -1,31 +1,27 @@
 import uuid
 
-from sqlalchemy import Enum, String, Text, select
+from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.models.company import Company
-from app.schemas.company import CompanyCreate, CompanyFieldRead, CompanyUpdate
-
-_IMPORT_SKIP_COLUMNS = {"id", "created_at", "updated_at"}
-
-
-def _column_type_name(column) -> str:
-    if isinstance(column.type, Enum):
-        return "enum"
-    if isinstance(column.type, (String, Text)):
-        return "string"
-    return type(column.type).__name__.lower()
+from app.schemas.company import (
+    CompanyBase,
+    CompanyCreate,
+    CompanyFieldRead,
+    CompanyUpdate,
+)
+from app.utils.schema_fields import field_constraints, field_type_name
 
 
 def get_company_import_fields() -> list[CompanyFieldRead]:
     return [
         CompanyFieldRead(
-            field=column.name,
-            type=_column_type_name(column),
-            required=not column.nullable,
+            name=name,
+            type=field_type_name(info.annotation),
+            required=info.is_required(),
+            constraints=field_constraints(info),
         )
-        for column in Company.__table__.columns
-        if column.name not in _IMPORT_SKIP_COLUMNS
+        for name, info in CompanyBase.model_fields.items()
     ]
 
 

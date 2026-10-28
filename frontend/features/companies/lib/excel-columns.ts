@@ -46,17 +46,17 @@ export async function getExcelColumnNames(file: File): Promise<string[]> {
 }
 
 export function buildInitialColumnMapping(
-  fields: { field: string }[],
+  fields: { name: string }[],
   columns: string[]
 ): Record<string, string> {
   const mapping: Record<string, string> = {}
 
-  for (const { field } of fields) {
+  for (const { name } of fields) {
     const match = columns.find(
       (column) =>
-        column.toLowerCase() === field.toLowerCase()
+        column.toLowerCase() === name.toLowerCase()
     )
-    mapping[field] = match ?? ""
+    mapping[name] = match ?? ""
   }
 
   return mapping

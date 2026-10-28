@@ -1,9 +1,10 @@
 import { apiFetch } from "@/lib/api"
 
 export type CompanyImportField = {
-  field: string
+  name: string
   type: string
   required: boolean
+  constraints: Record<string, unknown>
 }
 
 export async function getCompanyImportFields(): Promise<CompanyImportField[]> {

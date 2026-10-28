@@ -1,5 +1,6 @@
 import uuid
 from datetime import datetime
+from typing import Any
 
 from pydantic import AnyUrl, BaseModel, ConfigDict, Field
 
@@ -7,7 +8,7 @@ from app.enums import CompanyType
 
 
 class CompanyBase(BaseModel):
-    name: str = Field(..., max_length=255)
+    name: str = Field(..., min_length=2, max_length=255)
     domain: str | None = Field(default=None, max_length=255)
     website: AnyUrl | None = None
     career_page_url: AnyUrl | None = None
@@ -47,6 +48,7 @@ class CompanyRead(CompanyBase):
 
 
 class CompanyFieldRead(BaseModel):
-    field: str
+    name: str
     type: str
     required: bool
+    constraints: dict[str, Any]

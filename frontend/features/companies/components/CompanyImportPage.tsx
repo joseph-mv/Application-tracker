@@ -17,6 +17,46 @@ import {
 import { cn } from "@/lib/utils"
 import { getCompanyImportFields } from "@/services/company.services"
 
+const CONSTRAINT_LABELS: Record<string, string> = {
+  min_length: "min length",
+  max_length: "max length",
+  ge: "min",
+  gt: "greater than",
+  le: "max",
+  lt: "less than",
+  multiple_of: "multiple of",
+  max_digits: "max digits",
+  decimal_places: "decimal places",
+  pattern: "pattern",
+  enum: "one of",
+}
+
+function formatConstraintValue(value: unknown): string {
+  if (Array.isArray(value)) {
+    return value.map((item) => String(item)).join(", ")
+  }
+
+  if (value === null || value === undefined) {
+    return ""
+  }
+
+  return String(value)
+}
+
+function formatConstraints(constraints: Record<string, unknown>): string {
+  const parts = Object.entries(constraints).flatMap(([key, value]) => {
+    const formatted = formatConstraintValue(value)
+    if (!formatted) {
+      return []
+    }
+
+    const label = CONSTRAINT_LABELS[key] ?? key.replaceAll("_", " ")
+    return [`${label} ${formatted}`]
+  })
+
+  return parts.length > 0 ? parts.join(" · ") : "None"
+}
+
 export function CompanyImportPage() {
   const {
     data: fields = [],
@@ -30,6 +70,8 @@ export function CompanyImportPage() {
   const [mapping, setMapping] = useState<Record<string, string>>({})
   const [parseError, setParseError] = useState<string | null>(null)
   const hasFile = columns.length > 0
+
+  console.log("fields", fields)
 
 
   const usedColumns = useMemo(
@@ -115,6 +157,10 @@ export function CompanyImportPage() {
         />
       ) : (
         <div className="flex flex-col gap-space-md">
+          <p className="rounded-xl bg-surface-container-low px-space-md py-space-sm text-body-md text-on-surface">
+            Check your excel before matching with type and constraints
+          </p>
+
           <div className="flex max-w-md flex-col gap-space-xs">
             <Label htmlFor="company-import-file">Excel file</Label>
             <Input
@@ -132,36 +178,42 @@ export function CompanyImportPage() {
             {fields.map((field) => {
               const availableColumns = columns.filter(
                 (column) =>
-                  column === mapping[field.field] || !usedColumns.has(column)
+                  column === mapping[field.name] || !usedColumns.has(column)
               )
 
               return (
                 <li
                   className="flex items-center justify-between gap-space-md rounded-xl bg-surface-container-lowest px-space-md py-space-sm shadow-elevation-card"
-                  key={field.field}
+                  key={field.name}
                 >
-                  <span className="text-body-md font-medium text-on-surface">
-                    {field.field}
-                  </span>
-                  <div className="flex flex-col items-end">
-                    {field.required ? (
-                      <span
-                        aria-hidden="true"
-                        className="text-caption leading-none text-destructive"
-                      >
-                        *
-                      </span>
-                    ) : null}
-                    <ColumnMappingCombobox
-                      optional={!field.required}
-                      columns={availableColumns}
-                      disabled={!hasFile}
-                      onChange={(column) =>
-                        handleMappingChange(field.field, column)
-                      }
-                      value={mapping[field.field] ?? ""}
-                    />
+                  <div className="flex min-w-0 flex-col gap-0.5">
+                    <span className="text-body-md font-medium text-on-surface">
+                      {field.name}
+                      {field.required ? (
+                        <span
+                          aria-hidden="true"
+                          className="ml-1 text-destructive"
+                        >
+                          *
+                        </span>
+                      ) : null}
+                    </span>
+                    <span className="text-caption text-on-surface-variant">
+                      Type: {field.type}
+                    </span>
+                    <span className="text-caption text-outline">
+                      Constraints: {formatConstraints(field.constraints)}
+                    </span>
                   </div>
+                  <ColumnMappingCombobox
+                    optional={!field.required}
+                    columns={availableColumns}
+                    disabled={!hasFile}
+                    onChange={(column) =>
+                      handleMappingChange(field.name, column)
+                    }
+                    value={mapping[field.name] ?? ""}
+                  />
                 </li>
               )
             })}
