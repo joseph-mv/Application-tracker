@@ -17,7 +17,7 @@ export default function ProtectedLayout({
         />
         <AppSidebar />
         <div className="pt-16 lg:pl-64">
-          <main className="min-h-[calc(100vh-4rem)] w-full bg-surface px-space-margin-mobile py-space-lg lg:px-space-margin">
+          <main className="min-h-[calc(100vh-4rem)] w-full bg-surface px-space-margin-mobile py-space-lg lg:px-space-margin px-4">
             {children}
           </main>
         </div>

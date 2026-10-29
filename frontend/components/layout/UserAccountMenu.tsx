@@ -38,7 +38,6 @@ export function UserAccountMenu() {
   function handleLogout() {
     clearAuthSession()
     notifyAuthStorageChange()
-    console.log("Logging out")
     router.replace("/login")
   }
 

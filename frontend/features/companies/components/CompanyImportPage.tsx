@@ -13,9 +13,12 @@ import { ImportFieldsStatus } from "@/features/companies/components/ImportFields
 import {
   buildInitialColumnMapping,
   getExcelColumnNames,
+  verifyColumnMapping,
+  type ColumnMappingIssue,
 } from "@/features/companies/lib/excel-columns"
 import { cn } from "@/lib/utils"
 import { getCompanyImportFields } from "@/services/company.services"
+import { Button } from "@/components/ui/button"
 
 const CONSTRAINT_LABELS: Record<string, string> = {
   min_length: "min length",
@@ -69,9 +72,11 @@ export function CompanyImportPage() {
   const [columns, setColumns] = useState<string[]>([])
   const [mapping, setMapping] = useState<Record<string, string>>({})
   const [parseError, setParseError] = useState<string | null>(null)
+  const [file, setFile] = useState<File | null>(null)
+  const [mappingIssues, setMappingIssues] = useState<ColumnMappingIssue[] | null>(
+    null
+  )
   const hasFile = columns.length > 0
-
-  console.log("fields", fields)
 
 
   const usedColumns = useMemo(
@@ -81,6 +86,8 @@ export function CompanyImportPage() {
 
   async function handleFileChange(event: React.ChangeEvent<HTMLInputElement>) {
     const file = event.target.files?.[0]
+    setFile(file || null)
+    setMappingIssues(null)
 
     if (!file) {
       setColumns([])
@@ -106,12 +113,28 @@ export function CompanyImportPage() {
   }
 
   function handleMappingChange(fieldName: string, column: string) {
+    setMappingIssues(null)
     setMapping((current) => ({
       ...current,
       [fieldName]: column,
     }))
   }
 
+  async function handleVerifyMappings() {
+    if (!file) return
+
+    try {
+      const issues = await verifyColumnMapping(fields, columns, mapping, file)
+      setMappingIssues(issues)
+    } catch (requestError: unknown) {
+      setMappingIssues(null)
+      setParseError(
+        requestError instanceof Error
+          ? requestError.message
+          : "Unable to verify spreadsheet mappings"
+      )
+    }
+  }
   return (
     <div className="flex w-full flex-col gap-space-xl">
       <section className="flex flex-col justify-between gap-space-md md:flex-row md:items-center">
@@ -218,6 +241,39 @@ export function CompanyImportPage() {
               )
             })}
           </ul>
+
+          {file ? (
+            <div className="flex flex-col gap-space-sm">
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={handleVerifyMappings}
+              >
+                Verify Mappings
+              </Button>
+              {mappingIssues !== null ? (
+                mappingIssues.length === 0 ? (
+                  <p className="text-body-md text-on-surface">
+                    Mappings look valid
+                  </p>
+                ) : (
+                  <ul className="flex flex-col gap-space-xs rounded-xl bg-surface-container-low px-space-md py-space-sm">
+                    {mappingIssues.map((issue, index) => (
+                      <li
+                        className="text-body-md text-destructive"
+                        key={`${issue.field}-${issue.column ?? "none"}-${issue.row ?? "none"}-${index}`}
+                      >
+                        {issue.field}
+                        {issue.column ? ` · ${issue.column}` : ""}
+                        {issue.row !== null ? ` · row ${issue.row}` : ""}
+                        {`: ${issue.reason}`}
+                      </li>
+                    ))}
+                  </ul>
+                )
+              ) : null}
+            </div>
+          ) : null}
         </div>
       )}
     </div>
