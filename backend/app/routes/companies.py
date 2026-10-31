@@ -33,6 +33,20 @@ def get_company_import_fields():
     return company_service.get_company_import_fields()
 
 
+@router.post(
+    "/import",
+    response_model=list[CompanyRead],
+    status_code=status.HTTP_201_CREATED,
+)
+async def import_companies(payload: list[CompanyCreate], db: DbSession):
+    if not payload:
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            detail="At least one company is required",
+        )
+    return await company_service.create_companies(db, payload)
+
+
 @router.get("/{company_id}", response_model=CompanyRead)
 async def get_company(company_id: uuid.UUID, db: DbSession):
     company = await company_service.get_company(db, company_id)

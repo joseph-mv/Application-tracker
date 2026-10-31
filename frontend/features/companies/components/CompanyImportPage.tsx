@@ -18,7 +18,11 @@ import {
   type ColumnMappingResult,
 } from "@/features/companies/lib/excel-columns"
 import { cn } from "@/lib/utils"
-import { getCompanyImportFields } from "@/services/company.services"
+import {
+  getCompanyImportFields,
+  importCompanies,
+  type CompanyCreate,
+} from "@/services/company.services"
 import { Button } from "@/components/ui/button"
 
 const CONSTRAINT_LABELS: Record<string, string> = {
@@ -168,12 +172,17 @@ export function CompanyImportPage() {
         mappingResult.validRows
       )
       setImportRecords(records)
+      const created = (await importCompanies(records as CompanyCreate[])) as
+        | unknown[]
+        | null
+      setParseError(null)
+      setSubmitConfirmation(`Imported ${created?.length ?? records.length} companies`)
     } catch (requestError: unknown) {
       setImportRecords(null)
       setParseError(
         requestError instanceof Error
           ? requestError.message
-          : "Unable to build import records"
+          : "Unable to import companies"
       )
     }
   }

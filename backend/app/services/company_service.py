@@ -33,6 +33,17 @@ async def create_company(db: AsyncSession, data: CompanyCreate) -> Company:
     return company
 
 
+async def create_companies(
+    db: AsyncSession, data: list[CompanyCreate]
+) -> list[Company]:
+    companies = [Company(**item.model_dump(mode="json")) for item in data]
+    db.add_all(companies)
+    await db.commit()
+    for company in companies:
+        await db.refresh(company)
+    return companies
+
+
 async def get_company(
     db: AsyncSession, company_id: uuid.UUID
 ) -> Company | None:
