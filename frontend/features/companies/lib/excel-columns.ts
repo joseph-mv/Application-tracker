@@ -70,6 +70,12 @@ export type ColumnMappingIssue = {
   reason: string
 }
 
+export type ColumnMappingResult = {
+  issues: ColumnMappingIssue[]
+  issuedRows: Set<number>
+  validRows: number[]
+}
+
 type SheetCell = string | number | boolean | Date | null
 type SheetRow = SheetCell[]
 
@@ -366,15 +372,17 @@ export async function verifyColumnMapping(
   columns: string[],
   mapping: Record<string, string>,
   file: File
-): Promise<ColumnMappingIssue[]> {
+): Promise<ColumnMappingResult> {
   const issues: ColumnMappingIssue[] = []
   const rows = await readFirstSheetRows(file)
-
+  const issuedRows = new Set<number>()
+  let hasMappingIssue = false
 
   for (const field of fields) {
     const column = mapping[field.name]
 
     if (field.required && !column) {
+      hasMappingIssue = true
       issues.push({
         field: field.name,
         column: null,
@@ -386,6 +394,7 @@ export async function verifyColumnMapping(
 
     if (column) {
       if (!columns.includes(column)) {
+        hasMappingIssue = true
         issues.push({
           field: field.name,
           column,
@@ -415,6 +424,7 @@ export async function verifyColumnMapping(
               row: cell.row,
               reason: "Required value is empty",
             })
+            issuedRows.add(cell.row)
           }
           continue
         }
@@ -427,6 +437,7 @@ export async function verifyColumnMapping(
             row: cell.row,
             reason: typeReason,
           })
+          issuedRows.add(cell.row)
           continue
         }
 
@@ -438,10 +449,101 @@ export async function verifyColumnMapping(
             row: cell.row,
             reason: constraintReason,
           })
+          issuedRows.add(cell.row)
         }
       }
     }
   }
 
-  return issues
+  const validRows: number[] = []
+
+  if (!hasMappingIssue) {
+    for (let index = 1; index < rows.length; index++) {
+      const rowNumber = index + 1
+      if (isEmptyRow(rows[index]) || issuedRows.has(rowNumber)) {
+        continue
+      }
+      validRows.push(rowNumber)
+    }
+  }
+
+  return { issues, issuedRows, validRows }
+}
+
+function coerceCellValue(
+  value: SheetCell,
+  field: CompanyImportField
+): unknown {
+  const text = cellText(value)
+
+  switch (field.type) {
+    case "integer": {
+      if (typeof value === "number" && Number.isInteger(value)) {
+        return value
+      }
+      return Number.parseInt(text, 10)
+    }
+    case "float":
+    case "decimal":
+      return asFiniteNumber(value)
+    case "boolean": {
+      if (typeof value === "boolean") {
+        return value
+      }
+      const normalized = text.toLowerCase()
+      return normalized === "true" || normalized === "yes" || normalized === "1"
+    }
+    default:
+      return text
+  }
+}
+
+export async function buildRecordsFromValidRows(
+  file: File,
+  fields: CompanyImportField[],
+  mapping: Record<string, string>,
+  validRows: number[]
+): Promise<Record<string, unknown>[]> {
+  const rows = await readFirstSheetRows(file)
+  const headerRow = rows[0] ?? []
+  const columnIndexes = new Map<string, number>()
+
+  headerRow.forEach((cell, index) => {
+    columnIndexes.set(headerName(cell, index), index)
+  })
+
+  const validRowSet = new Set(validRows)
+  const records: Record<string, unknown>[] = []
+
+  for (const rowNumber of validRows) {
+    const row = rows[rowNumber - 1]
+    if (!validRowSet.has(rowNumber) || !row) {
+      continue
+    }
+
+    const record: Record<string, unknown> = {}
+
+    for (const field of fields) {
+      const column = mapping[field.name]
+      if (!column) {
+        continue
+      }
+
+      const columnIndex = columnIndexes.get(column)
+      if (columnIndex === undefined) {
+        continue
+      }
+
+      const cell = row[columnIndex] ?? ""
+      if (isBlankCell(cell)) {
+        continue
+      }
+
+      record[field.name] = coerceCellValue(cell, field)
+    }
+
+    records.push(record)
+  }
+
+  return records
 }

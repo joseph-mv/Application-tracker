@@ -12,9 +12,10 @@ import { ColumnMappingCombobox } from "@/features/companies/components/ColumnMap
 import { ImportFieldsStatus } from "@/features/companies/components/ImportFieldsStatus"
 import {
   buildInitialColumnMapping,
+  buildRecordsFromValidRows,
   getExcelColumnNames,
   verifyColumnMapping,
-  type ColumnMappingIssue,
+  type ColumnMappingResult,
 } from "@/features/companies/lib/excel-columns"
 import { cn } from "@/lib/utils"
 import { getCompanyImportFields } from "@/services/company.services"
@@ -73,9 +74,15 @@ export function CompanyImportPage() {
   const [mapping, setMapping] = useState<Record<string, string>>({})
   const [parseError, setParseError] = useState<string | null>(null)
   const [file, setFile] = useState<File | null>(null)
-  const [mappingIssues, setMappingIssues] = useState<ColumnMappingIssue[] | null>(
+  const [mappingResult, setMappingResult] = useState<ColumnMappingResult | null>(
     null
   )
+  const [submitConfirmation, setSubmitConfirmation] = useState<string | null>(
+    null
+  )
+  const [importRecords, setImportRecords] = useState<
+    Record<string, unknown>[] | null
+  >(null)
   const hasFile = columns.length > 0
 
 
@@ -87,7 +94,9 @@ export function CompanyImportPage() {
   async function handleFileChange(event: React.ChangeEvent<HTMLInputElement>) {
     const file = event.target.files?.[0]
     setFile(file || null)
-    setMappingIssues(null)
+    setMappingResult(null)
+    setSubmitConfirmation(null)
+    setImportRecords(null)
 
     if (!file) {
       setColumns([])
@@ -113,7 +122,9 @@ export function CompanyImportPage() {
   }
 
   function handleMappingChange(fieldName: string, column: string) {
-    setMappingIssues(null)
+    setMappingResult(null)
+    setSubmitConfirmation(null)
+    setImportRecords(null)
     setMapping((current) => ({
       ...current,
       [fieldName]: column,
@@ -124,16 +135,62 @@ export function CompanyImportPage() {
     if (!file) return
 
     try {
-      const issues = await verifyColumnMapping(fields, columns, mapping, file)
-      setMappingIssues(issues)
+      const result = await verifyColumnMapping(fields, columns, mapping, file)
+      setMappingResult(result)
+      setSubmitConfirmation(null)
+      setImportRecords(null)
     } catch (requestError: unknown) {
-      setMappingIssues(null)
+      setMappingResult(null)
+      setSubmitConfirmation(null)
+      setImportRecords(null)
       setParseError(
         requestError instanceof Error
           ? requestError.message
           : "Unable to verify spreadsheet mappings"
       )
     }
+  }
+
+  function handleCancelVerification() {
+    setMappingResult(null)
+    setSubmitConfirmation(null)
+    setImportRecords(null)
+  }
+
+  async function handleSubmitRecords() {
+    if (!file || !mappingResult || mappingResult.validRows.length === 0) return
+
+    try {
+      const records = await buildRecordsFromValidRows(
+        file,
+        fields,
+        mapping,
+        mappingResult.validRows
+      )
+      setImportRecords(records)
+    } catch (requestError: unknown) {
+      setImportRecords(null)
+      setParseError(
+        requestError instanceof Error
+          ? requestError.message
+          : "Unable to build import records"
+      )
+    }
+  }
+
+  function handleSubmitRows() {
+    if (!mappingResult || mappingResult.validRows.length === 0) return
+
+    setImportRecords(null)
+
+    if (mappingResult.issues.length === 0) {
+      setSubmitConfirmation("Ready to submit all valid rows")
+      return
+    }
+
+    setSubmitConfirmation(
+      `Ready to submit rows ${mappingResult.validRows.join(", ")}`
+    )
   }
   return (
     <div className="flex w-full flex-col gap-space-xl">
@@ -251,26 +308,63 @@ export function CompanyImportPage() {
               >
                 Verify Mappings
               </Button>
-              {mappingIssues !== null ? (
-                mappingIssues.length === 0 ? (
-                  <p className="text-body-md text-on-surface">
-                    Mappings look valid
-                  </p>
-                ) : (
-                  <ul className="flex flex-col gap-space-xs rounded-xl bg-surface-container-low px-space-md py-space-sm">
-                    {mappingIssues.map((issue, index) => (
-                      <li
-                        className="text-body-md text-destructive"
-                        key={`${issue.field}-${issue.column ?? "none"}-${issue.row ?? "none"}-${index}`}
-                      >
-                        {issue.field}
-                        {issue.column ? ` · ${issue.column}` : ""}
-                        {issue.row !== null ? ` · row ${issue.row}` : ""}
-                        {`: ${issue.reason}`}
-                      </li>
-                    ))}
-                  </ul>
-                )
+              {mappingResult !== null ? (
+                <>
+                  {mappingResult.issues.length === 0 ? (
+                    <p className="text-body-md text-on-surface">
+                      Mappings look valid
+                    </p>
+                  ) : (
+                    <ul className="flex flex-col gap-space-xs rounded-xl bg-surface-container-low px-space-md py-space-sm">
+                      {mappingResult.issues.map((issue, index) => (
+                        <li
+                          className="text-body-md text-destructive"
+                          key={`${issue.field}-${issue.column ?? "none"}-${issue.row ?? "none"}-${index}`}
+                        >
+                          {issue.field}
+                          {issue.column ? ` · ${issue.column}` : ""}
+                          {issue.row !== null ? ` · row ${issue.row}` : ""}
+                          {`: ${issue.reason}`}
+                        </li>
+                      ))}
+                    </ul>
+                  )}
+                  {mappingResult.issues.length > 0 ? (
+                    <p className="text-body-md text-on-surface">
+                      {mappingResult.validRows.length > 0
+                        ? `Rows that can still be imported: ${mappingResult.validRows.join(", ")}`
+                        : "No rows can be imported"}
+                    </p>
+                  ) : null}
+                  <div className="flex gap-space-sm">
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={handleCancelVerification}
+                    >
+                      Cancel
+                    </Button>
+                    <Button
+                      size="sm"
+                      disabled={mappingResult.validRows.length === 0}
+                      onClick={handleSubmitRows}
+                    >
+                      Submit
+                    </Button>
+                  </div>
+                  {submitConfirmation ? (
+                    <div className="flex flex-col gap-space-sm">
+                      <p className="text-body-md text-on-surface">
+                        {submitConfirmation}
+                      </p>
+                      {file && mappingResult.validRows.length > 0 ? (
+                        <Button size="sm" onClick={handleSubmitRecords}>
+                          Submit records
+                        </Button>
+                      ) : null}
+                    </div>
+                  ) : null}
+                </>
               ) : null}
             </div>
           ) : null}
