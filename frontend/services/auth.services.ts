@@ -51,6 +51,4 @@ export async function establishSession(
   localStorage.setItem("user", JSON.stringify(user))
 
   return user
-
-  
 }
